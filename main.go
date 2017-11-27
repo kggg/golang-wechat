@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/kggg/golang-wechat/utils/msgcrypt"
 	"log"
 	"net/http"
-	"wechat/utils/msgcrypt"
 )
 
 const (
