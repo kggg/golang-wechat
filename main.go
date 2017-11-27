@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	Token          = "Tj7rlp8BSCS7SFEn8rE9CSep5Dbl2lmx"
-	CorpId         = "ww3bedc4cae75db7ec"
-	EncodingAesKey = "jxD35KsNDtDBWUGgr4rs0JPEdYO4KNU7CmcBzdTBugK"
+	Token          = "got from wechat access token"
+	CorpId         = "company wechat id"
+	EncodingAesKey = "jxD35KsNDtDBWUGgr4rs0dddddddddddddddddddddd"
 )
 
 func wechat(rw http.ResponseWriter, req *http.Request) {
