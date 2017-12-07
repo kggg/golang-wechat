@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -29,35 +30,19 @@ func ValidateMsg(token, timestamp, nonce, msg_encrypt, msgSignature string) bool
 	return true
 }
 
-func DecryptMsg(EncryptMsg string, key string) ([]byte, error) {
-	aeskey, err := base64.StdEncoding.DecodeString(key + "=")
-	if err != nil {
-		return nil, err
-	}
-	aes_msg, err := base64.StdEncoding.DecodeString(EncryptMsg)
-	if err != nil {
-		return nil, err
-	}
-	plaintext, err := AesDecrypt(aes_msg, aeskey)
-	bytesBuffer := bytes.NewBuffer(plaintext[16:20])
-	var msg_int int32
-	//binary.Read(bytesBuffer, binary.BigEndian, &msg_int)
-	binary.Read(bytesBuffer, binary.LittleEndian, &msg_int)
-	msgint := int(msg_int)
-	xml_content := plaintext[20 : 20+msgint]
-	return xml_content, nil
-}
-
 func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(ciphertext, padtext...)
 }
 
-func PKCS7UnPadding(origData []byte) []byte {
+func PKCS7UnPadding(origData []byte) ([]byte, error) {
 	length := len(origData)
+	if length < 1 {
+		return nil, errors.New("the cipther length less than 1")
+	}
 	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
+	return origData[:(length - unpadding)], nil
 }
 
 func AesEncrypt(origData, key []byte) ([]byte, error) {
@@ -71,19 +56,6 @@ func AesEncrypt(origData, key []byte) ([]byte, error) {
 	crypted := make([]byte, len(origData))
 	blockMode.CryptBlocks(crypted, origData)
 	return crypted, nil
-}
-
-func AesDecrypt(crypted, key []byte) ([]byte, error) {
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	blockSize := block.BlockSize()
-	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
-	origData := make([]byte, len(crypted))
-	blockMode.CryptBlocks(origData, crypted)
-	origData = PKCS7UnPadding(origData)
-	return origData, nil
 }
 
 func EncryptMsg(plaintMsg, key, corpid string) (string, error) {
@@ -107,8 +79,7 @@ func JoinMsg(msg, corpid string) ([]byte, error) {
 	randomBytes := []byte("abcdefghabcdefgh")
 	Msg := []byte(msg)
 	buf := new(bytes.Buffer)
-	//err := binary.Write(buf, binary.BigEndian, int32(len(msg)))
-	err := binary.Write(buf, binary.LittleEndian, int32(len(msg)))
+	err := binary.Write(buf, binary.BigEndian, int32(len(msg)))
 	if err != nil {
 		return []byte(""), err
 	}
@@ -116,4 +87,41 @@ func JoinMsg(msg, corpid string) ([]byte, error) {
 	plaintext := bytes.Join([][]byte{randomBytes, msgLength, Msg, []byte(corpid)}, nil)
 	return plaintext, nil
 
+}
+
+func AesDecrypt(crypted, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
+	origData := make([]byte, len(crypted))
+	blockMode.CryptBlocks(origData, crypted)
+	origData, err = PKCS7UnPadding(origData)
+	if err != nil {
+		return nil, err
+	}
+	return origData, nil
+}
+
+func DecryptMsg(EncryptMsg string, key string) ([]byte, error) {
+	aeskey, err := base64.StdEncoding.DecodeString(key + "=")
+	if err != nil {
+		return nil, err
+	}
+	aes_msg, err := base64.StdEncoding.DecodeString(EncryptMsg)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err := AesDecrypt(aes_msg, aeskey)
+	if err != nil {
+		return nil, err
+	}
+	bytesBuffer := bytes.NewBuffer(plaintext[16:20])
+	var msg_int int32
+	binary.Read(bytesBuffer, binary.BigEndian, &msg_int)
+	msgint := int(msg_int)
+	xml_content := plaintext[20 : 20+msgint]
+	return xml_content, nil
 }
