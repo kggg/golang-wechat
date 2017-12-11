@@ -23,9 +23,10 @@ func wechat(rw http.ResponseWriter, req *http.Request) {
 		Token:          Token,
 		EncodingAESKey: EncodingAESKey,
 	}
-	ser := server.NewServer(context)
-	ser.Serve()
-
+	err := ser.Serve()
+	if err != nil {
+		log.Printf("Handle the message error: ", err)
+	}
 }
 
 func main() {
