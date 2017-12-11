@@ -4,6 +4,17 @@ import (
 	"encoding/xml"
 )
 
+// MsgType 基本消息类型
+var MsgType = []string{"text", "image", "voice", "video", "shortvideo", "location", "link", "music", "news", "transfer_customer_service", "event"}
+
+type CDATA string
+
+func (c CDATA) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(struct {
+		string `xml:",cdata"`
+	}{string(c)}, start)
+}
+
 //EncryptedXMLMsg 安全模式下的消息体
 type EncryptedXMLMsg struct {
 	XMLName      struct{} `xml:"xml" json:"-"`
@@ -15,10 +26,10 @@ type EncryptedXMLMsg struct {
 //ResponseEncryptedXMLMsg 需要返回的消息体
 type ResponseEncryptedXMLMsg struct {
 	XMLName      struct{} `xml:"xml" json:"-"`
-	EncryptedMsg string   `xml:"Encrypt"      json:"Encrypt"`
-	MsgSignature string   `xml:"MsgSignature" json:"MsgSignature"`
-	Timestamp    int64    `xml:"TimeStamp"    json:"TimeStamp"`
-	Nonce        string   `xml:"Nonce"        json:"Nonce"`
+	Encrypt      CDATA    `json:"Encrypt"`
+	MsgSignature CDATA    `json:"MsgSignature"`
+	TimeStamp    int64    `xml:"TimeStamp"  json:"TimeStamp"`
+	Nonce        CDATA    `json:"Nonce"`
 }
 
 // CommonToken 消息中通用的结构
@@ -27,7 +38,7 @@ type CommonToken struct {
 	ToUserName   string   `xml:"ToUserName"`
 	FromUserName string   `xml:"FromUserName"`
 	CreateTime   int64    `xml:"CreateTime"`
-	MsgType      MsgType  `xml:"MsgType"`
+	MsgType      string   `xml:"MsgType"`
 }
 
 //SetToUserName set ToUserName
@@ -46,6 +57,55 @@ func (msg *CommonToken) SetCreateTime(createTime int64) {
 }
 
 //SetMsgType set MsgType
-func (msg *CommonToken) SetMsgType(msgType MsgType) {
+func (msg *CommonToken) SetMsgType(msgType string) {
 	msg.MsgType = msgType
+}
+
+type FullMessage struct {
+	CommonToken
+
+	//基本消息
+	MsgID        int64   `xml:"MsgId"`
+	Content      string  `xml:"Content"`
+	PicURL       string  `xml:"PicUrl"`
+	MediaID      string  `xml:"MediaId"`
+	Format       string  `xml:"Format"`
+	ThumbMediaID string  `xml:"ThumbMediaId"`
+	LocationX    float64 `xml:"Location_X"`
+	LocationY    float64 `xml:"Location_Y"`
+	Scale        float64 `xml:"Scale"`
+	Label        string  `xml:"Label"`
+	Title        string  `xml:"Title"`
+	Description  string  `xml:"Description"`
+	URL          string  `xml:"Url"`
+
+	//事件相关
+	Event     string `xml:"Event"`
+	EventKey  string `xml:"EventKey"`
+	Ticket    string `xml:"Ticket"`
+	Latitude  string `xml:"Latitude"`
+	Longitude string `xml:"Longitude"`
+	Precision string `xml:"Precision"`
+	MenuID    string `xml:"MenuId"`
+}
+
+func MakeResponseXML(cipher, signature, nonce string, timestamp int64) ([]byte, error) {
+	/*
+		msgXML := &{
+			Encrypt:      CDATA(cipher),
+			MsgSignature: CDATA(signature),
+			TimeStamp:    timestamp,
+			Nonce:        CDATA(nonce),
+		}
+	*/
+	var resp ResponseEncryptedXMLMsg
+	resp.Encrypt = CDATA(cipher)
+	resp.MsgSignature = CDATA(signature)
+	resp.TimeStamp = timestamp
+	resp.Nonce = CDATA(nonce)
+	body, err := xml.MarshalIndent(resp, " ", "    ")
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
