@@ -79,7 +79,24 @@ func (srv *Server) Serve() error {
 		}
 		//被动响应消息, 这里用来测试内部主机的状态
 		if strings.HasPrefix(text.Content, "status") {
-			msg := "the host status is ok"
+			var msg string
+			content := strings.Split(text.Content, "#")
+			if len(content) > 2 {
+				if content[1] == "host" {
+					msg = "the host status is active"
+					ok := monitor.Ping(content[2])
+					if !ok {
+						msg = "the host status is down"
+					}
+				} else if content[1] == "service" {
+
+				} else {
+					msg = "你输入格式不对\n格式为: status#[host|service]#[ip|servicename]\n"
+				}
+			} else {
+				msg = "你输入格式不对\n格式为: status#[host|service]#[ip|servicename]\n"
+			}
+
 			responsexml, err := srv.MakeResponseMsg(msg, text.FromUserName, text.MsgType)
 			if err != nil {
 				return err
