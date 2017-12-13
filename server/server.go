@@ -10,6 +10,7 @@ import (
 	"time"
 	"wechat/context"
 	"wechat/message"
+	"wechat/monitor"
 	"wechat/utils/msgcrypt"
 )
 
